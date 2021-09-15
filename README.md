@@ -1,10 +1,11 @@
 # asynchronous_binance_client
 
 This is an asynchronous library that is written for using binance services.
+
 You need aiohttp and asyncio for delealing with methods and properties.
 
 
-2- First instantiate from BinanceFuturesClient:
+1- First instantiate from BinanceFuturesClient:
 
 binance_client = BinanceFuturesClient(api_key, secret_key, testnet=False)
 
