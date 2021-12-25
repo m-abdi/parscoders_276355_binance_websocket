@@ -8,36 +8,38 @@ from datetime import datetime, timedelta
 async def fetch(handle_open_position, handle_order_status, desired_order_id, symbol):
     while True:
         try:
-           
-
             # get listen key
             async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
                 listen_key = await binance_futures_client.listen_key(session)
                 start = datetime.now()
-                # initial check 
+                # initial check
                 positions = await asyncio.create_task(binance_futures_client.position_information(session))
                 order_status = await asyncio.create_task(binance_futures_client.query_order(session, symbol, order_id=desired_order_id))
-                print(positions)
-                print(order_status)
                 # handle position
                 try:
                     for position in positions:
-                            if position.get('positionAmt') and float(position['positionAmt']) != 0:
-                                await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+                        if position.get('positionAmt') and float(position['positionAmt']) != 0:
+                            await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
                 except Exception as exc:
                     print(exc.args)
                     pass
                 # handle order status
-                await asyncio.to_thread(handle_order_status, order_status=order_status['status'])
+                try:
+                    await asyncio.to_thread(handle_order_status, order_status=order_status['status'])
+                except:
+                    pass
 
             # subscribe for user_data_websocket
             async for msg in binance_futures_client.user_data_stream(session, listen_key):
-
-                response = ujson.loads(msg)
+                try:
+                    response = ujson.loads(msg)
+                except:
+                    response = {}
                 # keep-alive listen key
                 if datetime.now() > start + timedelta(minutes=10):
                     async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
                         await binance_futures_client.keep_alive_listen_key(session)
+                        start = datetime.now()
 
                 # listen-key expiration handling
                 if response.get('e') and response['e'] == 'listenKeyExpired':
@@ -66,11 +68,11 @@ def handle_open_position(symbol, side, amount): print(symbol, side, amount)
 def handle_order_status(order_status): print(order_status)
 #
 
-
+# import this function into your project
 def entry_point(handle_open_position=handle_open_position,
                 handle_order_status=handle_order_status,
                 order_id=8886774,
-                symbol = 'BTCUSDT'):
+                symbol='BTCUSDT'):
 
     asyncio.run(
         fetch(
