@@ -1,29 +1,83 @@
 import ujson
 from binance_client import binance_futures_client
 import asyncio
-import websockets
 import aiohttp
 from datetime import datetime, timedelta
-async def fetch():
+
+
+async def fetch(handle_open_position, handle_order_status, desired_order_id, symbol):
     while True:
-        # get listen key
-        async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
-            listen_key = await binance_futures_client.listen_key(session)
-            start = datetime.now()
-        # subscribe for user_data_websocket
-        async for msg in binance_futures_client.user_data_stream(session, listen_key):
-            
-            print(response := ujson.loads(msg))
-            # keep-alive listen key
-            if datetime.now() > start + timedelta(minutes=40):
-                async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
-                    await binance_futures_client.keep_alive_listen_key(session)
-            
-            # listen-key expiration handling
-            if response.get('e') and response['e'] == 'listenKeyExpired':
-                continue
+        try:
+           
+
+            # get listen key
+            async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
+                listen_key = await binance_futures_client.listen_key(session)
+                start = datetime.now()
+                # initial check 
+                positions = await asyncio.create_task(binance_futures_client.position_information(session))
+                order_status = await asyncio.create_task(binance_futures_client.query_order(session, symbol, order_id=desired_order_id))
+                print(positions)
+                print(order_status)
+                # handle position
+                try:
+                    for position in positions:
+                            if position.get('positionAmt') and float(position['positionAmt']) != 0:
+                                await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+                except Exception as exc:
+                    print(exc.args)
+                    pass
+                # handle order status
+                await asyncio.to_thread(handle_order_status, order_status=order_status['status'])
+
+            # subscribe for user_data_websocket
+            async for msg in binance_futures_client.user_data_stream(session, listen_key):
+
+                response = ujson.loads(msg)
+                # keep-alive listen key
+                if datetime.now() > start + timedelta(minutes=10):
+                    async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
+                        await binance_futures_client.keep_alive_listen_key(session)
+
+                # listen-key expiration handling
+                if response.get('e') and response['e'] == 'listenKeyExpired':
+                    break
+
+                # handle position
+                if response.get('e') and response['e'] == "ACCOUNT_UPDATE" and response['a'].get('P'):
+                    for position in response['a']['P']:
+                        if float(position['pa']) != 0:
+                            await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+
+                # handle order status
+                if response.get('e') and response['e'] == "ORDER_TRADE_UPDATE" and response.get('o'):
+                    order_id = response['o']["i"]
+                    if order_id == desired_order_id:
+                        order_status = response['o']["X"]
+                        await asyncio.to_thread(handle_order_status, order_status=order_status)
+
+        except Exception as exc:
+            print(exc.args)
+            continue
 
 
+# ***change these callbacks*** :
+def handle_open_position(symbol, side, amount): print(symbol, side, amount)
+def handle_order_status(order_status): print(order_status)
+#
 
 
-asyncio.get_event_loop().run_until_complete(fetch())
+def entry_point(handle_open_position=handle_open_position,
+                handle_order_status=handle_order_status,
+                order_id=8886774,
+                symbol = 'BTCUSDT'):
+
+    asyncio.run(
+        fetch(
+            handle_open_position, handle_order_status, order_id, symbol
+        )
+    )
+
+
+if __name__ == "__main__":
+    entry_point()

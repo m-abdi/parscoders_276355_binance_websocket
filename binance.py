@@ -293,7 +293,7 @@ class BinanceFuturesClient:
         async with session.get(self.base_url + '/fapi/v2/balance', headers=headers, params=params) as resp:
             return await resp.json()
 
-    async def position_information(self, session, symbol: str, recv_window=5000):
+    async def position_information(self, session, symbol: str = None, recv_window=5000):
         """Get current position information.
 
         :param symbol:
