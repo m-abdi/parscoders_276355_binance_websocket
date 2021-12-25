@@ -319,7 +319,7 @@ class BinanceFuturesClient:
         headers = {'X-MBX-APIKEY': self.api_key}
         async with session.post(self.base_url + '/fapi/v1/listenKey', headers=headers) as listen_key:
             listen_key = await listen_key.json()
-        return listen_key['listenKey']
+            return listen_key['listenKey']
 
     async def keep_alive_listen_key(self, session):
         """Keepalive a user data stream to prevent a time out.
@@ -346,8 +346,8 @@ class BinanceFuturesClient:
 
     async def user_data_stream(self, session, listen_key):
         uri = self.base_socket + f'/ws/{listen_key}'
-        async with session.ws_connect(uri) as ws:
-            return await ws.receive_json()
+        async with websockets.connect(uri) as ws:
+            yield await ws.recv()
 
     async def aggregate_trade_streams(self, symbol):
         """The Aggregate Trade Streams push trade information that is aggregated for a single taker order every 100 milliseconds.
@@ -359,6 +359,9 @@ class BinanceFuturesClient:
         async with websockets.connect(url) as webs:
             async for msg in webs:
                 yield ujson.loads(msg)
+    
+    async def combined_stream(self, stream1, stream2):
+        url = self.base_socket + f"/stream?streams={stream1}/{stream2}"
 
     async def mark_price_stream(self, session, symbol):
         """The Aggregate Trade Streams push trade information that is aggregated for a single taker order every 100 milliseconds.
