@@ -19,20 +19,20 @@ async def fetch(handle_open_position, handle_order_status, desired_order_id, sym
                 try:
                     for position in positions:
                         if position.get('positionAmt') and float(position['positionAmt']) != 0:
-                            await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+                            await asyncio.to_thread(handle_open_position, symbol=symbol, side=position['positionSide'], amount=position['positionAmt'])
                 except Exception as exc:
-                    print(exc.args)
                     pass
                 # handle order status
                 try:
-                    await asyncio.to_thread(handle_order_status, order_status=order_status['status'])
+                    if order_status.get('status'):
+                        await asyncio.to_thread(handle_order_status, order_status=order_status['status'])
                 except:
                     pass
 
             # subscribe for user_data_websocket
-            async for msg in binance_futures_client.user_data_stream(session, listen_key):
+            async for msg in binance_futures_client.user_data_stream(listen_key):
                 try:
-                    response = ujson.loads(msg)
+                    response = msg
                 except:
                     response = {}
                 # keep-alive listen key

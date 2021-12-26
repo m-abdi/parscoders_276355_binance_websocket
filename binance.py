@@ -242,7 +242,8 @@ class BinanceFuturesClient:
                   'recvWindow': recv_window, 'timestamp': f'{round(datetime.now().timestamp() * 1000)}'}
         params = self.signature(params)
         async with session.get(self.base_url + '/fapi/v1/order', headers=headers, params=params) as resp:
-            return await resp.json()
+            resp = await resp.json()
+        return resp
 
     async def cancel_order(self, session, symbol, order_id=None, orig_client_order_id=None, recv_window=5000):
         """Cancel an active order.
@@ -344,10 +345,11 @@ class BinanceFuturesClient:
             listen_key = await listen_key.json()
         return listen_key
 
-    async def user_data_stream(self, session, listen_key):
+    async def user_data_stream(self, listen_key):
         uri = self.base_socket + f'/ws/{listen_key}'
-        async with websockets.connect(uri) as ws:
-            yield await ws.recv()
+        async with websockets.connect(uri) as webs:
+            async for msg in webs:
+                yield ujson.loads(msg)
 
     async def aggregate_trade_streams(self, symbol):
         """The Aggregate Trade Streams push trade information that is aggregated for a single taker order every 100 milliseconds.
