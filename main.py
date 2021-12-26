@@ -46,13 +46,13 @@ async def fetch(handle_open_position, handle_order_status, desired_order_id, sym
                     break
 
                 # handle position
-                if response.get('e') and response['e'] == "ACCOUNT_UPDATE" and response['a'].get('P'):
+                elif response.get('e') and response['e'] == "ACCOUNT_UPDATE" and response['a'].get('P'):
                     for position in response['a']['P']:
                         if float(position['pa']) != 0:
                             await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
 
                 # handle order status
-                if response.get('e') and response['e'] == "ORDER_TRADE_UPDATE" and response.get('o'):
+                elif response.get('e') and response['e'] == "ORDER_TRADE_UPDATE" and response.get('o'):
                     order_id = response['o']["i"]
                     if order_id == desired_order_id:
                         order_status = response['o']["X"]
