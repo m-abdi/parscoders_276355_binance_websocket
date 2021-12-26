@@ -48,15 +48,13 @@ async def fetch(handle_open_position, handle_order_status, desired_order_id, sym
                 # handle position
                 elif response.get('e') and response['e'] == "ACCOUNT_UPDATE" and response['a'].get('P'):
                     for position in response['a']['P']:
-                        if float(position['pa']) != 0:
-                            await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+                        await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
 
                 # handle order status
                 elif response.get('e') and response['e'] == "ORDER_TRADE_UPDATE" and response.get('o'):
                     order_id = response['o']["i"]
-                    if order_id == desired_order_id:
-                        order_status = response['o']["X"]
-                        await asyncio.to_thread(handle_order_status, order_status=order_status)
+                    order_status = response['o']["X"]
+                    await asyncio.to_thread(handle_order_status, order_status=order_status, order_id=order_id)
 
         except Exception as exc:
             print(exc.args)
@@ -65,7 +63,7 @@ async def fetch(handle_open_position, handle_order_status, desired_order_id, sym
 
 # ***change these callbacks*** :
 def handle_open_position(symbol, side, amount): print(symbol, side, amount)
-def handle_order_status(order_status): print(order_status)
+def handle_order_status(order_status, order_id): print(order_status, order_id)
 #
 
 # import this function into your project
