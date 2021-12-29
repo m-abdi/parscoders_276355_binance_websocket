@@ -4,8 +4,8 @@ import asyncio
 import aiohttp
 from datetime import datetime, timedelta
 
-
 async def fetch(handle_open_position, handle_order_status, desired_order_id, symbol):
+    leave_stream = False
     while True:
         try:
             # get listen key
@@ -48,13 +48,20 @@ async def fetch(handle_open_position, handle_order_status, desired_order_id, sym
                 # handle position
                 elif response.get('e') and response['e'] == "ACCOUNT_UPDATE" and response['a'].get('P'):
                     for position in response['a']['P']:
-                        await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+                        leave_stream = await asyncio.to_thread(handle_open_position, symbol=position['s'], side=position['ps'], amount=position['pa'])
+                        if leave_stream:
+                            break
 
                 # handle order status
                 elif response.get('e') and response['e'] == "ORDER_TRADE_UPDATE" and response.get('o'):
                     order_id = response['o']["i"]
                     order_status = response['o']["X"]
-                    await asyncio.to_thread(handle_order_status, order_status=order_status, order_id=order_id)
+                    leave_stream = await asyncio.to_thread(handle_order_status, order_status=order_status, order_id=order_id)
+                
+                if leave_stream:
+                    break
+            if leave_stream:
+                break
 
         except Exception as exc:
             print(exc.args)
@@ -62,8 +69,16 @@ async def fetch(handle_open_position, handle_order_status, desired_order_id, sym
 
 
 # ***change these callbacks*** :
-def handle_open_position(symbol, side, amount): print(symbol, side, amount)
-def handle_order_status(order_status, order_id): print(order_status, order_id)
+def handle_open_position(symbol, side, amount): 
+    print(symbol, side, amount)
+    # if you want to leave entry_point:
+    return True
+    # if you don't want to leave, return False
+def handle_order_status(order_status, order_id): 
+    print(order_status, order_id)
+    # if you want to leave entry_point:
+    return True
+    # if you don't want to leave, return False
 #
 
 # import this function into your project
